@@ -21,6 +21,10 @@
 #include "mfbfilter.h"
 #include "schcauer.h"
 #include "transferfuncdialog.h"
+#include "helpdialog.h"
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
 #include <QTextCodec>
 
 
@@ -32,6 +36,37 @@ QucsActiveFilter::QucsActiveFilter(QWidget *parent)
     ftyp = Filter::NoFilter;
 
     QTextCodec::setCodecForTr(QTextCodec::codecForName("UTF-8"));
+
+    // --------  create menubar  -------------------
+    QMenu *fileMenu = new QMenu(tr("&File"));
+
+    QAction * fileQuit = new QAction(tr("E&xit"), this);
+    fileQuit->setShortcut(Qt::CTRL+Qt::Key_Q);
+    connect(fileQuit, SIGNAL(activated()), SLOT(close()));
+
+    fileMenu->addAction(fileQuit);
+
+    QMenu *helpMenu = new QMenu(tr("&Help"), this);
+    QAction * helpHelp = new QAction(tr("Help..."), this);
+    helpHelp->setShortcut(Qt::Key_F1);
+    connect(helpHelp, SIGNAL(activated()), SLOT(slotHelpIntro()));
+
+    QAction * helpAbout = new QAction(tr("&About QucsFilter..."), this);
+    helpMenu->addAction(helpAbout);
+    connect(helpAbout, SIGNAL(activated()), SLOT(slotHelpAbout()));
+
+    QAction * helpAboutQt = new QAction(tr("About Qt..."), this);
+    helpMenu->addAction(helpAboutQt);
+    connect(helpAboutQt, SIGNAL(activated()), SLOT(slotHelpAboutQt()));
+
+    helpMenu->addAction(helpHelp);
+    helpMenu->addSeparator();
+    helpMenu->addAction(helpAbout);
+    helpMenu->addAction(helpAboutQt);
+
+    menuBar()->addMenu(fileMenu);
+    menuBar()->addSeparator();
+    menuBar()->addMenu(helpMenu);
 
     //lblInputData = new QLabel(tr("Входные данные"));
     lblA1 = new QLabel(tr("Passband attenuation, Ap (dB)"));
@@ -100,27 +135,28 @@ QucsActiveFilter::QucsActiveFilter(QWidget *parent)
 
     cbxFilterType = new QComboBox;
     QStringList lst;
-    lst<<tr("Cauer section")
-      <<tr("Multifeedback (MFB)")
-      <<tr("Sallen-Key (S-K)");
+    lst<<tr("Multifeedback (MFB)")
+       <<tr("Sallen-Key (S-K)")
+       <<tr("Cauer section");
      //<<tr("Пассивный");
     cbxFilterType->addItems(lst);
     connect(cbxFilterType,SIGNAL(currentIndexChanged(int)),this,SLOT(slotUpdateSchematic()));
     this->slotSwitchParameters();
+    cbxFilterType->setMaxCount(3);
 
     lblAFR = new QLabel(tr("General amplitude frequency response"));
     lblTopology = new QLabel(tr("Filter topology preview (one stage)"));
 
-    QString s1 = ":/images/AFR.svg";
+    QString s1 = ":/images/bitmaps/AFR.svg";
     QSvgRenderer *ren = new QSvgRenderer(s1);
     QSize sz = ren->defaultSize();
-    sz *= 1.1;
+    sz *= 1.3;
     delete ren;
     imgAFR = new QSvgWidget(s1);
     imgAFR->setFixedSize(sz);
     imgAFR->show();
 
-    s1 = ":/images/cauer.svg";
+    s1 = ":/images/bitmaps/cauer.svg";
     ren = new QSvgRenderer(s1);
     sz = ren->defaultSize();
     sz *= 0.65;
@@ -129,50 +165,77 @@ QucsActiveFilter::QucsActiveFilter(QWidget *parent)
     sch_pic = new QSvgWidget(s1);
     sch_pic->setFixedSize(sz);
     sch_pic->show();
+    this->slotUpdateSchematic();
 
     top = new QHBoxLayout;
     left = new QVBoxLayout;
     center = new QVBoxLayout;
-    right = new QVBoxLayout;
+    right = new QHBoxLayout;
 
     //left->addWidget(lblInputData);
-    left->addWidget(lblA1);
-    left->addWidget(edtA1);
-    left->addWidget(lblA2);
-    left->addWidget(edtA2);
-    left->addWidget(lblF1);
-    left->addWidget(edtF1);
-    left->addWidget(lblF2);
-    left->addWidget(edtF2);
-    left->addWidget(lblRpl1);
-    left->addWidget(edtPassbRpl);
-    left->addWidget(lblKv);
-    left->addWidget(edtKv);
-    left->addWidget(lblOrder);
-    left->addWidget(edtOrder);
+    QGroupBox *gpbPar = new QGroupBox(tr("Filter parameters"));
+    QGridLayout *vl3 = new QGridLayout;
+    vl3->setSpacing(3);
+    vl3->addWidget(lblA1,0,0);
+    vl3->addWidget(edtA1,0,1);
+    vl3->addWidget(lblA2,1,0);
+    vl3->addWidget(edtA2,1,1);
+    vl3->addWidget(lblF1,2,0);
+    vl3->addWidget(edtF1,2,1);
+    vl3->addWidget(lblF2,3,0);
+    vl3->addWidget(edtF2,3,1);
+    vl3->addWidget(lblRpl1,4,0);
+    vl3->addWidget(edtPassbRpl,4,1);
+    vl3->addWidget(lblKv,5,0);
+    vl3->addWidget(edtKv,5,1);
+    vl3->addWidget(lblOrder,6,0);
+    vl3->addWidget(edtOrder,6,1);
+    left->addWidget(gpbPar);
+    gpbPar->setLayout(vl3);
+
+
+    QGroupBox *gpbFunc = new QGroupBox(tr("Transfer function and Topology"));
+    QVBoxLayout *vl4 = new QVBoxLayout;
+
     QHBoxLayout *l3 = new QHBoxLayout;
     l3->addWidget(lblTyp);
     l3->addWidget(cbxFilterFunc);
-    left->addLayout(l3);
+    vl4->addLayout(l3);
 
-    left->addWidget(btnDefineTransferFunc);
+    vl4->addWidget(btnDefineTransferFunc);
 
     QHBoxLayout *l1 = new QHBoxLayout;
     l1->addWidget(lblResp);
     l1->addWidget(cbxResponse);
-    left->addLayout(l1);
+    vl4->addLayout(l1);
     QHBoxLayout *l2 = new QHBoxLayout;
     l2->addWidget(lblSch);
     l2->addWidget(cbxFilterType);
-    left->addLayout(l2);
-    left->addWidget(btnCalcSchematic);
+    vl4->addLayout(l2);
+    vl4->addWidget(btnCalcSchematic);
+
+    gpbFunc->setLayout(vl4);
+    left->addWidget(gpbFunc);
+
     left->addStretch();
 
-    right->addWidget(lblAFR);
+    QGroupBox *gpbAFR = new QGroupBox(tr("General filter amplidure-frequency response"));
+    QVBoxLayout *vl1 = new QVBoxLayout;
+    vl1->addWidget(imgAFR);
+    gpbAFR->setLayout(vl1);
+    right->addWidget(gpbAFR);
+
+    QGroupBox *gpbSCH = new QGroupBox(tr("Filter topology preview"));
+    QVBoxLayout *vl2 = new QVBoxLayout;
+    vl2->addWidget(sch_pic);
+    gpbSCH->setLayout(vl2);
+    right->addWidget(gpbSCH);
+
+    /*right->addWidget(lblAFR);
     right->addWidget(imgAFR);
     right->addWidget(lblTopology);
     right->addWidget(sch_pic);
-    right->addStretch();
+    right->addStretch();*/
 
     top->addLayout(left);
     top->addLayout(center);
@@ -183,7 +246,13 @@ QucsActiveFilter::QucsActiveFilter(QWidget *parent)
     QSplitter *sp1 = new QSplitter;
     top1->addWidget(sp1);
     txtResult->setReadOnly(true);
-    top1->addWidget(txtResult);
+
+    QGroupBox *gpbCons = new QGroupBox(tr("Filter calculation console"));
+    QVBoxLayout *vl5 = new QVBoxLayout;
+    vl5->addWidget(txtResult);
+    gpbCons->setLayout(vl5);
+
+    top1->addWidget(gpbCons);
     txtResult->setMinimumHeight(180);
 
     zenter = new QWidget;
@@ -213,18 +282,18 @@ void QucsActiveFilter::slotCalcSchematic()
     Filter::FilterFunc ffunc;
 
     switch (cbxFilterFunc->currentIndex()) {
-            case 0 : ffunc = Filter::Butterworth;
+            case funcButterworth : ffunc = Filter::Butterworth;
                      break;
-            case 1 : ffunc = Filter::Chebyshev;
+            case funcChebyshev : ffunc = Filter::Chebyshev;
                      break;
-            case 2 : ffunc = Filter::InvChebyshev;
+            case funcInvChebyshev : ffunc = Filter::InvChebyshev;
                      break;
-            case 3 : ffunc = Filter::Cauer;
+            case funcCauer : ffunc = Filter::Cauer;
                      break;
-            case 4 : ffunc = Filter::Bessel;
+            case funcBessel : ffunc = Filter::Bessel;
                      par.order = edtOrder->text().toInt();
                      break;
-            case 5 : ffunc = Filter::User;
+            case funcUser : ffunc = Filter::User;
                      break;
             default: ffunc = Filter::NoFunc;
                      break;
@@ -233,13 +302,13 @@ void QucsActiveFilter::slotCalcSchematic()
 
 
     switch (cbxResponse->currentIndex()) {
-    case 0 : ftyp = Filter::LowPass;
+    case tLowPass : ftyp = Filter::LowPass;
         break;
-    case 1 : ftyp = Filter::HighPass;
+    case tHiPass : ftyp = Filter::HighPass;
         break;
-    case 2 : ftyp = Filter::BandPass;
+    case tBandPass : ftyp = Filter::BandPass;
         break;
-    case 3 : ftyp = Filter::BandStop;
+    case tBandStop : ftyp = Filter::BandStop;
         break;
     default: ftyp = Filter::NoFilter;
         break;
@@ -249,7 +318,7 @@ void QucsActiveFilter::slotCalcSchematic()
     bool ok = false;
 
     switch (cbxFilterType->currentIndex()) {
-    case 0 : {               
+    case topoCauer : {
                 if (((ffunc==Filter::InvChebyshev)||(ffunc==Filter::Cauer))) {
                    SchCauer cauer(ffunc,ftyp,par);
                    ok = cauer.calcFilter();
@@ -269,7 +338,7 @@ void QucsActiveFilter::slotCalcSchematic()
              }
 
              break;
-    case 1 : {              
+    case topoMFB : {
                 if (!((ffunc==Filter::InvChebyshev)||(ffunc==Filter::Cauer))) {
                     MFBfilter mfb(ffunc,ftyp,par);
                     if (ffunc==Filter::User) {
@@ -291,7 +360,7 @@ void QucsActiveFilter::slotCalcSchematic()
                 }
              }
              break;
-    case 2 : {
+    case topoSallenKey : {
                SallenKey sk(ffunc,ftyp,par);
                if (ffunc==Filter::User) {
                    sk.set_TrFunc(coeffA,coeffB);
@@ -308,9 +377,8 @@ void QucsActiveFilter::slotCalcSchematic()
                }
              }
              break;
-    case 3 : errorMessage(tr("Function will be implemented in future version"));
+    default : errorMessage(tr("Function will be implemented in future version"));
              break;
-    default: break;
     }
 
     if (ok) {
@@ -326,19 +394,19 @@ void QucsActiveFilter::slotCalcSchematic()
 
 void QucsActiveFilter::slotUpdateResponse()
 {
-    QString s = ":/images/AFR.svg";
+    QString s = ":/images/bitmaps/AFR.svg";
 
     switch (cbxResponse->currentIndex()) {
-        case 0 :
-            s = ":/images/AFR.svg";
+        case tLowPass :
+            s = ":/images/bitmaps/AFR.svg";
             ftyp = Filter::LowPass;
             break;
-        case 1 : s = ":/images/high-pass.svg";
+        case tHiPass : s = ":/images/bitmaps/high-pass.svg";
             ftyp = Filter::HighPass;
             break;
-        case 2 : ftyp = Filter::BandPass;
+        case tBandPass : ftyp = Filter::BandPass;
             break;
-        case 3 : ftyp = Filter::BandStop;
+        case tBandStop : ftyp = Filter::BandStop;
             break;
         default: ftyp = Filter::NoFilter;
             break;
@@ -358,21 +426,21 @@ void QucsActiveFilter::slotUpdateSchematic()
     slotUpdateResponse();
     QString s;
     switch (cbxFilterType->currentIndex()) {
-    case 0 : s = ":images/cauer.svg";
+    case topoCauer : s = ":images/bitmaps/cauer.svg"; // Cauer section
              break;
-    case 1 : if (ftyp==Filter::HighPass) {
-            s = ":/images/mfb-highpass.svg";
+    case topoMFB : if (ftyp==Filter::HighPass) { // Multifeedback
+            s = ":/images/bitmaps/mfb-highpass.svg";
         } else if (ftyp==Filter::LowPass) {
-            s = ":/images/mfb-lowpass.svg";
+            s = ":/images/bitmaps/mfb-lowpass.svg";
         }
              break;
-    case 2 : if (ftyp==Filter::HighPass) {
-            s = ":/images/sk-highpass.svg";
+    case topoSallenKey : if (ftyp==Filter::HighPass) { // Sallen-Key
+            s = ":/images/bitmaps/sk-highpass.svg";
         } else if (ftyp==Filter::LowPass) {
-           s = ":/images/sk-lowpass.svg";
+           s = ":/images/bitmaps/sk-lowpass.svg";
         }
         break;
-    case 3 : s = ":/images/mfb-lowpass.svg";
+    case 3 : s = ":/images/bitmaps/mfb-lowpass.svg";
         break;
     default:
         break;
@@ -389,7 +457,7 @@ void QucsActiveFilter::slotUpdateSchematic()
 
 void QucsActiveFilter::slotSwitchParameters()
 {
-    if (cbxFilterFunc->currentIndex()==0) {
+    if (cbxFilterFunc->currentIndex()==funcButterworth) { // Butterworth
         edtA1->setEnabled(true);
         edtPassbRpl->setEnabled(false);
     } else {
@@ -397,20 +465,32 @@ void QucsActiveFilter::slotSwitchParameters()
         edtPassbRpl->setEnabled(true);
     }
 
-    if ((cbxFilterFunc->currentIndex()==3)||(cbxFilterFunc->currentIndex()==2)) {
-        cbxFilterType->setCurrentIndex(0);
+    if ((cbxFilterFunc->currentIndex()==funcCauer)||
+        (cbxFilterFunc->currentIndex()==funcInvChebyshev)) { // Inverse Chebyshev
+                                                                                  // or Cauer
         cbxFilterType->setDisabled(true);
     } else {
         cbxFilterType->setDisabled(false);
     }
 
-    if ((cbxFilterFunc->currentIndex())==4) {
+    if ((cbxFilterFunc->currentIndex()==funcInvChebyshev)||  // Inv.Chebyshev
+        (cbxFilterFunc->currentIndex()==funcCauer)||  // Cauer
+        (cbxFilterFunc->currentIndex()==funcUser)) // or User defined
+    {
+        cbxFilterType->addItem(tr("Cauer section"),Qt::DisplayRole);
+        cbxFilterType->setCurrentIndex(topoCauer);
+    } else {
+        cbxFilterType->removeItem(topoCauer);
+    }
+
+    if ((cbxFilterFunc->currentIndex())==funcBessel) { // Bessel
         edtOrder->setEnabled(true);
     } else {
         edtOrder->setEnabled(false);
     }
 
-    if ((cbxFilterFunc->currentIndex()==5)||(cbxFilterFunc->currentIndex()==4)) {
+    if ((cbxFilterFunc->currentIndex()==funcUser)||
+        (cbxFilterFunc->currentIndex()==funcBessel)) { // Bessel or User Def.
         btnDefineTransferFunc->setEnabled(true);
         edtF2->setEnabled(false);
         edtPassbRpl->setEnabled(false);
@@ -444,4 +524,31 @@ void QucsActiveFilter::errorMessage(QString str)
                                         QMessageBox::Ok);
     msg->exec();
     delete msg;
+}
+
+
+void QucsActiveFilter::slotHelpAbout()
+{
+  QMessageBox::about(this, tr("About..."),
+    "QucsFilter Version " PACKAGE_VERSION+
+    tr("\nActive Filter synthesis program\n")+
+    tr("Copyright (C) 2014 by")+
+    "\nVadim Kuznetsov\n"
+    "\nThis is free software; see the source for copying conditions."
+    "\nThere is NO warranty; not even for MERCHANTABILITY or "
+    "\nFITNESS FOR A PARTICULAR PURPOSE.\n\n");
+}
+
+// ************************************************************
+void QucsActiveFilter::slotHelpAboutQt()
+{
+  QMessageBox::aboutQt(this, tr("About Qt"));
+}
+
+// ************************************************************
+void QucsActiveFilter::slotHelpIntro()
+{
+  HelpDialog *d = new HelpDialog(this);
+  d->exec();
+  delete d;
 }

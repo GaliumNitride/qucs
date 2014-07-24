@@ -29,6 +29,12 @@ class QucsActiveFilter : public QMainWindow
     Q_OBJECT
 
 private:
+
+    enum lstTopology { topoMFB = 0, topoSallenKey = 1, topoCauer = 2};
+    enum lstFiltFunc { funcButterworth =0, funcChebyshev=1, funcInvChebyshev=2,
+                       funcCauer = 3, funcBessel = 4, funcUser = 5};
+    enum lstFiltType { tLowPass =0, tHiPass=1, tBandPass=2, tBandStop=3};
+
     QLabel *lblInputData;
     QLabel *lblA1;
     QLabel *lblA2;
@@ -77,7 +83,7 @@ private:
     QHBoxLayout *top;
     QVBoxLayout *left;
     QVBoxLayout *center;
-    QVBoxLayout *right;
+    QHBoxLayout *right;
     QVBoxLayout *top1;
     
     QSvgWidget *sch_pic;
@@ -103,6 +109,9 @@ private slots:
     void slotCalcSchematic();
     void slotSwitchParameters();
     void slotDefineTransferFunc();
+    void slotHelpAbout();
+    void slotHelpAboutQt();
+    void slotHelpIntro();
 
 public:
     QucsActiveFilter(QWidget *parent = 0);
